@@ -55,21 +55,21 @@
       height: 100%;
       object-fit: cover;
     }
-    /* Viseur de recadrage */
+    /* Viseur de recadrage — petit et centré */
     #overlay {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 80%;
-      height: 40%;
-      border: 2px solid var(--accent);
-      border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+      width: 55%;
+      height: 28%;
+      border: 3px solid var(--accent);
+      border-radius: 6px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);
       pointer-events: none;
     }
     #overlay::before {
-      content: "Cadrer les coordonnées GPS";
+      content: "Cadrer LAT + LON uniquement";
       position: absolute;
       top: -26px;
       left: 50%;
@@ -230,8 +230,8 @@
     // Dimensions de la zone de capture (viseur)
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const cropW = vw * 0.8;
-    const cropH = vh * 0.4;
+    const cropW = vw * 0.55;
+    const cropH = vh * 0.28;
     const cropX = (vw - cropW) / 2;
     const cropY = (vh - cropH) / 2;
 
@@ -240,8 +240,20 @@
     const ctx = canvas.getContext('2d');
 
     // Améliorer le contraste pour l'OCR
-    ctx.filter = 'contrast(2) brightness(1.2) grayscale(1)';
+    // Dessiner d'abord en normal
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    
+    // Appliquer filtres agressifs pour texte noir sur blanc
+    const imageData = ctx.getImageData(0, 0, cropW, cropH);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      // Convertir en niveaux de gris
+      const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+      // Seuillage binaire — noir ou blanc
+      const val = avg > 128 ? 255 : 0;
+      data[i] = data[i+1] = data[i+2] = val;
+    }
+    ctx.putImageData(imageData, 0, 0);
 
     setProgress(30);
     setStatus('Analyse OCR...');
