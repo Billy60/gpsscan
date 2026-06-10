@@ -278,33 +278,63 @@
   function parseCoords(text) {
     console.log('OCR brut:', text);
 
-    // Patterns de coordonnées décimales
+    // Extraire tous les nombres décimaux de la forme XX.XXXXXX
+    const allNumbers = [];
+    const numPattern = /(\d{1,3}[.,]\d{4,7})/g;
+    let m;
+    while ((m = numPattern.exec(text)) !== null) {
+      const val = parseFloat(m[1].replace(',', '.'));
+      allNumbers.push(val);
+    }
+    console.log('Nombres trouvés:', allNumbers);
+
+    // Chercher une paire lat/lon valide
+    // LAT: entre 40 et 60 (France), LON: entre -5 et 10 (France)
+    let lat = null, lon = null;
+    for (let i = 0; i < allNumbers.length; i++) {
+      if (allNumbers[i] >= 40 && allNumbers[i] <= 60) {
+        // Candidat LAT
+        for (let j = 0; j < allNumbers.length; j++) {
+          if (i !== j && allNumbers[j] >= -5 && allNumbers[j] <= 10) {
+            lat = allNumbers[i];
+            lon = allNumbers[j];
+            break;
+          }
+        }
+        if (lat) break;
+      }
+    }
+
+    if (lat && lon) {
+      latFound = lat;
+      lonFound = lon;
+      showCoords(lat, lon);
+      return;
+    }
+
+    // Fallback — patterns texte
     const patterns = [
-      // Format "LAT 49.21301  LON 2.58142"
-      /(?:LAT|lat)[:\s]+(-?\d{1,3}\.\d{4,7})[^\d-]+(?:LON|lon)[:\s]+(-?\d{1,3}\.\d{4,7})/i,
-      // Format "49.21301, 2.58142"
-      /(-?\d{2,3}\.\d{4,7})[,\s]+(-?\d{1,3}\.\d{4,7})/,
-      // Format "M 49.21301" puis "2.58142"
-      /[M\s](-?\d{2}\.\d{4,7})\s+(-?\d{1,3}\.\d{4,7})/,
-      // Deux nombres décimaux consécutifs ressemblant à des coords
-      /(\d{2}\.\d{5,7})\D+(\d{1,3}\.\d{5,7})/,
+      /(?:LAT|lat)[:\s
+]+(-?\d{1,3}[.,]\d{4,7})[\s\S]*?(?:LON|lon)[:\s
+]+(-?\d{1,3}[.,]\d{4,7})/i,
+      /(-?\d{2,3}[.,]\d{4,7})[,\s
+]+(-?\d{1,3}[.,]\d{4,7})/,
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
-        const lat = parseFloat(match[1]);
-        const lon = parseFloat(match[2]);
-        if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-          latFound = lat;
-          lonFound = lon;
-          showCoords(lat, lon);
+        const la = parseFloat(match[1].replace(',','.'));
+        const lo = parseFloat(match[2].replace(',','.'));
+        if (la >= -90 && la <= 90 && lo >= -180 && lo <= 180) {
+          latFound = la; lonFound = lo;
+          showCoords(la, lo);
           return;
         }
       }
     }
 
-    setStatus('Coordonnées non trouvées — réessayer');
+    setStatus('Non trouvé — vérifier console (F12)');
     document.getElementById('coord-display').textContent = 'Aucune coordonnée détectée';
     document.getElementById('coord-display').className = 'coord-line empty';
     document.getElementById('btn-maps').disabled = true;
