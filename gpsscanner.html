@@ -109,14 +109,7 @@
   async function initOCR() {
     if (worker) return;
     setStatus('Initialisation OCR...');
-    worker = await Tesseract.createWorker('eng', 1, {
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4/tesseract-core.wasm.js',
-    });
-    await worker.setParameters({
-      tessedit_char_whitelist: '0123456789.-',
-    });
+    worker = await Tesseract.createWorker('eng');
     setStatus('Prêt');
   }
 
