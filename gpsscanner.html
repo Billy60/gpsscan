@@ -136,6 +136,11 @@
       background: var(--accent);
       color: #0a0e1a;
     }
+    #btn-photo {
+      background: #6644aa;
+      color: #ffffff;
+      flex: 0.8;
+    }
     #btn-maps {
       background: var(--green);
       color: #0a0e1a;
@@ -188,8 +193,10 @@
 
   <div class="btn-row">
     <button id="btn-scan" onclick="scan()">📷 SCANNER</button>
+    <button id="btn-photo" onclick="document.getElementById('file-input').click()">🖼 PHOTO</button>
     <button id="btn-maps" onclick="openMaps()" disabled>🗺 GOOGLE MAPS</button>
   </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none" onchange="scanFile(this)">
 </div>
 
 <script>
@@ -243,14 +250,14 @@
     // Dessiner d'abord en normal
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     
-    // Appliquer filtres agressifs pour texte noir sur blanc
+    // Appliquer filtres agressifs pour texte blanc sur fond noir
     const imageData = ctx.getImageData(0, 0, cropW, cropH);
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
       // Convertir en niveaux de gris
       const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-      // Seuillage binaire — noir ou blanc
-      const val = avg > 128 ? 255 : 0;
+      // Inverser + seuillage — blanc sur noir devient noir sur blanc pour Tesseract
+      const val = avg > 100 ? 0 : 255;
       data[i] = data[i+1] = data[i+2] = val;
     }
     ctx.putImageData(imageData, 0, 0);
@@ -318,6 +325,49 @@
     el.className = 'coord-line';
     document.getElementById('btn-maps').disabled = false;
     setStatus(`✔ Coordonnées trouvées ! Appuyer sur GOOGLE MAPS`);
+  }
+
+  async function scanFile(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const btn = document.getElementById('btn-photo');
+    btn.disabled = true;
+    setStatus('Chargement image...');
+    setProgress(20);
+
+    const img = new Image();
+    img.onload = async function() {
+      const canvas = document.getElementById('canvas');
+      canvas.width  = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      // Seuillage binaire
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+        const val = avg > 100 ? 0 : 255;
+        data[i] = data[i+1] = data[i+2] = val;
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      setProgress(40);
+      setStatus('OCR en cours...');
+      try {
+        if (!worker) await initOCR();
+        const { data: { text } } = await worker.recognize(canvas);
+        setProgress(90);
+        parseCoords(text);
+      } catch(e) {
+        setStatus('Erreur OCR : ' + e.message);
+      }
+      setProgress(100);
+      btn.disabled = false;
+      setTimeout(() => setProgress(0), 1000);
+    };
+    img.src = URL.createObjectURL(file);
   }
 
   function openMaps() {
