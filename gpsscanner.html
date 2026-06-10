@@ -6,21 +6,10 @@
   <title>GPS Scan → Maps</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
-    :root {
-      --bg:     #0a0e1a;
-      --panel:  #0f1628;
-      --accent: #00d4ff;
-      --green:  #00ff9d;
-      --yellow: #ffd700;
-      --red:    #ff3b5c;
-      --text:   #e0eeff;
-      --muted:  #4a6080;
-      --mono:   'Courier New', monospace;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: #0a0e1a;
+      color: #e0eeff;
       font-family: 'Segoe UI', sans-serif;
       height: 100dvh;
       display: flex;
@@ -28,383 +17,200 @@
       overflow: hidden;
     }
     header {
-      background: var(--panel);
+      background: #0f1628;
       padding: 10px 16px;
       border-bottom: 1px solid #1e2d4a;
       text-align: center;
     }
-    header h1 {
-      font-size: 1.1rem;
-      color: var(--accent);
-      letter-spacing: 2px;
-    }
-    header p {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    #video-container {
-      position: relative;
-      flex: 1;
-      background: #000;
-      overflow: hidden;
-    }
-    #video {
-      display: none;
-    }
-    /* Viseur de recadrage — petit et centré */
-    #overlay {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 55%;
-      height: 28%;
-      border: 3px solid var(--accent);
-      border-radius: 6px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);
-      pointer-events: none;
-    }
-    #overlay::before {
-      content: "Cadrer LAT + LON uniquement";
-      position: absolute;
-      top: -26px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: var(--accent);
-      font-size: 0.75rem;
-      white-space: nowrap;
-      background: rgba(0,0,0,0.7);
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
+    header h1 { font-size: 1.1rem; color: #00d4ff; letter-spacing: 2px; }
+    header p  { font-size: 0.75rem; color: #4a6080; margin-top: 2px; }
 
     #panel {
-      background: var(--panel);
-      padding: 10px 16px;
+      background: #0f1628;
+      padding: 12px 16px;
       border-top: 1px solid #1e2d4a;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
     }
 
-    /* Résultat OCR */
     #result-box {
       background: #0a0e1a;
       border: 1px solid #1e2d4a;
       border-radius: 6px;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-      min-height: 48px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      padding: 12px;
+      min-height: 70px;
     }
     .coord-line {
-      font-family: var(--mono);
-      font-size: 1.0rem;
-      color: var(--green);
+      font-family: 'Courier New', monospace;
+      font-size: 1.1rem;
+      color: #00ff9d;
       letter-spacing: 1px;
     }
-    .coord-line.empty {
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-    .status-line {
-      font-size: 0.7rem;
-      color: var(--muted);
-      font-style: italic;
-    }
+    .coord-line.empty { color: #4a6080; font-size: 0.85rem; }
+    .status-line { font-size: 0.7rem; color: #4a6080; margin-top: 6px; font-style: italic; }
 
-    /* Boutons */
-    .btn-row {
-      display: flex;
-      gap: 10px;
-    }
+    #progress { height: 3px; background: #1e2d4a; border-radius: 2px; overflow: hidden; }
+    #progress-bar { height: 100%; background: #00d4ff; width: 0%; transition: width 0.3s; }
+
+    .btn-row { display: flex; gap: 10px; }
     button {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: opacity 0.2s;
+      flex: 1; padding: 14px; border: none; border-radius: 6px;
+      font-size: 1rem; font-weight: bold; cursor: pointer;
     }
     button:active { opacity: 0.7; }
-    #btn-photo {
-      background: #6644aa;
-      color: #ffffff;
-      flex: 0.8;
-    }
-    #btn-maps {
-      background: var(--green);
-      color: #0a0e1a;
-    }
-    #btn-maps:disabled {
-      background: #1e2d4a;
-      color: var(--muted);
-      cursor: not-allowed;
-    }
-
-    /* Progress */
-    #progress {
-      height: 3px;
-      background: #1e2d4a;
-      border-radius: 2px;
-      margin-bottom: 8px;
-      overflow: hidden;
-    }
-    #progress-bar {
-      height: 100%;
-      background: var(--accent);
-      width: 0%;
-      transition: width 0.3s;
-    }
+    #btn-photo { background: #6644aa; color: #fff; }
+    #btn-maps  { background: #00ff9d; color: #0a0e1a; }
+    #btn-maps:disabled { background: #1e2d4a; color: #4a6080; }
 
     canvas { display: none; }
+    #preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 6px;
+      display: none;
+      margin: 0 auto;
+      object-fit: contain;
+    }
   </style>
 </head>
 <body>
 
 <header>
   <h1>📡 GPS SCAN → MAPS</h1>
-  <p>Pointer la caméra sur les coordonnées GPS de la radio</p>
+  <p>Choisir une photo de l'écran radio</p>
 </header>
 
-<div id="video-container">
-  <video id="video" autoplay playsinline muted></video>
-  <div id="overlay"></div>
-</div>
-
-<canvas id="canvas"></canvas>
-
 <div id="panel">
+  <img id="preview" alt="aperçu" />
+
   <div id="progress"><div id="progress-bar"></div></div>
 
   <div id="result-box">
-    <div class="coord-line empty" id="coord-display">Aucune coordonnée détectée</div>
-    <div class="status-line" id="status-line">Appuyer sur SCANNER</div>
+    <div class="coord-line empty" id="coord-display">Choisir une photo pour commencer</div>
+    <div class="status-line" id="status-line">En attente</div>
   </div>
 
   <div class="btn-row">
-    <button id="btn-photo" onclick="document.getElementById('file-input').click()">🖼 PHOTO</button>
+    <button id="btn-photo" onclick="document.getElementById('file-input').click()">🖼 CHOISIR PHOTO</button>
     <button id="btn-maps" onclick="openMaps()" disabled>🗺 GOOGLE MAPS</button>
   </div>
   <input type="file" id="file-input" accept="image/*" style="display:none" onchange="scanFile(this)">
 </div>
 
+<canvas id="canvas"></canvas>
+
 <script>
   let latFound = null, lonFound = null;
   let worker = null;
 
-  // Démarrer la caméra arrière
-  async function startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-      });
-      document.getElementById('video').srcObject = stream;
-    } catch(e) {
-      setStatus('Erreur caméra : ' + e.message);
-    }
-  }
-
-  // Initialiser Tesseract
   async function initOCR() {
+    if (worker) return;
+    setStatus('Initialisation OCR...');
     worker = await Tesseract.createWorker('eng');
     await worker.setParameters({
-      tessedit_char_whitelist: '0123456789.-+, NESWLatLon:',
+      tessedit_char_whitelist: '0123456789.-',
     });
+    setStatus('Prêt');
   }
 
-  // Capturer la zone du viseur et faire l'OCR
-  async function scan() {
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const overlay = document.getElementById('overlay');
-    const btn = document.getElementById('btn-photo');
-
-    btn.disabled = true;
-    setStatus('Capture en cours...');
-    setProgress(10);
-
-    // Dimensions de la zone de capture (viseur)
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    const cropW = vw * 0.55;
-    const cropH = vh * 0.28;
-    const cropX = (vw - cropW) / 2;
-    const cropY = (vh - cropH) / 2;
-
-    canvas.width  = cropW;
-    canvas.height = cropH;
-    const ctx = canvas.getContext('2d');
-
-    // Améliorer le contraste pour l'OCR
-    // Dessiner d'abord en normal
-    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-    
-    // Contraste élevé pour Tesseract
-    const tmpCanvas2 = document.createElement('canvas');
-    tmpCanvas2.width  = cropW;
-    tmpCanvas2.height = cropH;
-    const tmpCtx2 = tmpCanvas2.getContext('2d');
-    tmpCtx2.filter = 'grayscale(1) contrast(3) brightness(1.3)';
-    tmpCtx2.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-    ctx.drawImage(tmpCanvas2, 0, 0);
-
-    setProgress(30);
-    setStatus('Analyse OCR...');
-
-    try {
-      if (!worker) await initOCR();
-      setProgress(50);
-
-      const { data: { text } } = await worker.recognize(canvas);
-      setProgress(80);
-      setStatus('Extraction des coordonnées...');
-
-      parseCoords(text);
-    } catch(e) {
-      setStatus('Erreur OCR : ' + e.message);
-    }
-
-    setProgress(100);
-    btn.disabled = false;
-    setTimeout(() => setProgress(0), 1000);
-  }
-
-  // Extraire les coordonnées depuis le texte OCR
   function parseCoords(text) {
-    console.log('OCR brut:', text);
+    console.log('OCR texte:', text);
 
-    // Extraire tous les nombres décimaux de la forme XX.XXXXXX
-    const allNumbers = [];
-    const numPattern = /(\d{1,3}[.,]\d{4,7})/g;
+    // Extraire tous les nombres décimaux
+    const nums = [];
+    const re = /\d{1,3}[.,]\d{4,7}/g;
     let m;
-    while ((m = numPattern.exec(text)) !== null) {
-      const val = parseFloat(m[1].replace(',', '.'));
-      allNumbers.push(val);
+    while ((m = re.exec(text)) !== null) {
+      nums.push(parseFloat(m[0].replace(',', '.')));
     }
-    console.log('Nombres trouvés:', allNumbers);
+    console.log('Nombres:', nums);
 
-    // Chercher une paire lat/lon valide
-    // LAT: entre 40 et 60 (France), LON: entre -5 et 10 (France)
+    // Chercher LAT (40-60) et LON (-5 à 10) pour la France
     let lat = null, lon = null;
-    for (let i = 0; i < allNumbers.length; i++) {
-      if (allNumbers[i] >= 40 && allNumbers[i] <= 60) {
-        // Candidat LAT
-        for (let j = 0; j < allNumbers.length; j++) {
-          if (i !== j && allNumbers[j] >= -5 && allNumbers[j] <= 10) {
-            lat = allNumbers[i];
-            lon = allNumbers[j];
+    for (let i = 0; i < nums.length; i++) {
+      if (nums[i] >= 40 && nums[i] <= 60) {
+        for (let j = 0; j < nums.length; j++) {
+          if (i !== j && nums[j] >= 0 && nums[j] <= 10) {
+            lat = nums[i];
+            lon = nums[j];
             break;
           }
         }
-        if (lat) break;
+        if (lat !== null) break;
       }
     }
 
-    if (lat && lon) {
+    if (lat !== null && lon !== null) {
       latFound = lat;
       lonFound = lon;
-      showCoords(lat, lon);
-      return;
+      document.getElementById('coord-display').textContent =
+        lat.toFixed(6) + ',  ' + lon.toFixed(6);
+      document.getElementById('coord-display').className = 'coord-line';
+      document.getElementById('btn-maps').disabled = false;
+      setStatus('✔ Coordonnées trouvées !');
+    } else {
+      document.getElementById('coord-display').textContent = 'Non trouvé — réessayer';
+      document.getElementById('coord-display').className = 'coord-line empty';
+      document.getElementById('btn-maps').disabled = true;
+      setStatus('Nombres détectés: ' + nums.join(', '));
     }
-
-    // Fallback — patterns texte
-    const patterns = [
-      /(?:LAT|lat)[:\s
-]+(-?\d{1,3}[.,]\d{4,7})[\s\S]*?(?:LON|lon)[:\s
-]+(-?\d{1,3}[.,]\d{4,7})/i,
-      /(-?\d{2,3}[.,]\d{4,7})[,\s
-]+(-?\d{1,3}[.,]\d{4,7})/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) {
-        const la = parseFloat(match[1].replace(',','.'));
-        const lo = parseFloat(match[2].replace(',','.'));
-        if (la >= -90 && la <= 90 && lo >= -180 && lo <= 180) {
-          latFound = la; lonFound = lo;
-          showCoords(la, lo);
-          return;
-        }
-      }
-    }
-
-    setStatus('Non trouvé — vérifier console (F12)');
-    document.getElementById('coord-display').textContent = 'Aucune coordonnée détectée';
-    document.getElementById('coord-display').className = 'coord-line empty';
-    document.getElementById('btn-maps').disabled = true;
-  }
-
-  function showCoords(lat, lon) {
-    const el = document.getElementById('coord-display');
-    el.textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-    el.className = 'coord-line';
-    document.getElementById('btn-maps').disabled = false;
-    setStatus(`✔ Coordonnées trouvées ! Appuyer sur GOOGLE MAPS`);
   }
 
   async function scanFile(input) {
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
-    const btn = document.getElementById('btn-photo');
-    btn.disabled = true;
-    setStatus('Chargement image...');
-    setProgress(20);
+
+    setStatus('Chargement...');
+    setProgress(10);
 
     const img = new Image();
     img.onload = async function() {
+      // Aperçu
+      const preview = document.getElementById('preview');
+      preview.src = img.src;
+      preview.style.display = 'block';
+
+      // Dessiner sur canvas avec contraste
       const canvas = document.getElementById('canvas');
       canvas.width  = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
+      ctx.filter = 'grayscale(1) contrast(2.5) brightness(1.2)';
       ctx.drawImage(img, 0, 0);
-
-      // Contraste élevé sans seuillage destructif
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = canvas.width;
-      tmpCanvas.height = canvas.height;
-      const tmpCtx = tmpCanvas.getContext('2d');
-      tmpCtx.filter = 'grayscale(1) contrast(3) brightness(1.3)';
-      tmpCtx.drawImage(img, 0, 0);
-      ctx.drawImage(tmpCanvas, 0, 0);
 
       setProgress(40);
       setStatus('OCR en cours...');
+
       try {
-        if (!worker) await initOCR();
-        const { data: { text } } = await worker.recognize(canvas);
+        await initOCR();
+        setProgress(60);
+        const result = await worker.recognize(canvas);
         setProgress(90);
-        parseCoords(text);
+        parseCoords(result.data.text);
       } catch(e) {
-        setStatus('Erreur OCR : ' + e.message);
+        setStatus('Erreur: ' + e.message);
+        console.error(e);
       }
+
       setProgress(100);
-      btn.disabled = false;
       setTimeout(() => setProgress(0), 1000);
     };
+    img.onerror = () => setStatus('Erreur chargement image');
     img.src = URL.createObjectURL(file);
   }
 
   function openMaps() {
     if (latFound === null) return;
-    const url = `https://maps.google.com/?q=${latFound},${lonFound}`;
-    window.open(url, '_blank');
+    window.open('https://maps.google.com/?q=' + latFound + ',' + lonFound, '_blank');
   }
 
-  function setStatus(msg) {
-    document.getElementById('status-line').textContent = msg;
-  }
+  function setStatus(msg) { document.getElementById('status-line').textContent = msg; }
+  function setProgress(v) { document.getElementById('progress-bar').style.width = v + '%'; }
 
-  function setProgress(val) {
-    document.getElementById('progress-bar').style.width = val + '%';
-  }
-
-  // Init
+  // Init OCR au chargement
   initOCR();
 </script>
 </body>
